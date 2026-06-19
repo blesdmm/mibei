@@ -16,12 +16,16 @@ on:
 jobs:
   update-subscription:
     runs-on: ubuntu-latest
+    # 【修复重点】显式授予工作流向仓库写入代码的权限
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
       with:
         token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0  # 完整拉取历史，确保 git 状态正常
     
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -61,7 +65,8 @@ jobs:
       id: check_update
       run: |
         if [ -f "subscription.txt" ]; then
-          if git diff --quiet HEAD subscription.txt; then
+          # 检查工作区文件的实际修改状态
+          if git diff --quiet subscription.txt; then
             echo "文件未更新"
             echo "updated=false" >> $GITHUB_OUTPUT
           else
@@ -84,5 +89,6 @@ jobs:
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
         git add subscription.txt last_updated.txt
-        git commit -m "自动更新订阅链接 - $(date +'%Y-%m-%d %H:%M:%S')"
-        git push
+        git commit -m "自动更新订阅 链接 - $(date +'%Y-%m-%d %H:%M:%S')"
+        # 安全推送到当前触发的工作流分支
+        git push origin HEAD:${{ github.ref_name }}
